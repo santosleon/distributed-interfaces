@@ -20,7 +20,7 @@ func Open() error {
   var port     = 5432
   var driver   = "postgres"
   var user     = "postgres"
-  var password = "usuario"
+  var password = "password"
   var dbname   = "di"
   if (host == "") { host = "localhost" }
   dsn := fmt.Sprintf("%s://%s:%s@%s:%d/%s?sslmode=disable", driver, user, password, host, port, dbname)
