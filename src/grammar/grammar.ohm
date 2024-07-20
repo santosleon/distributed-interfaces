@@ -1,0 +1,72 @@
+Grammar {
+  Schema = (Model | Relation)+
+
+  Model = "model" modelName "{" comment? (ModelField | ModelComposition)+ ModelAnnotation* "}"
+
+  ModelField       = fieldName ModelType comment? #(lineTerminator)
+  ModelComposition = modelName comment? #(lineTerminator)
+  ModelType        = ModelBaseType #(modelSpecifierSymbol)? #(modelSpecifier)* #(modelValidation)*
+  ModelBaseType    = ModelBoolTypes | ModelDateTypes | ModelBytesTypes | ModelIntTypes | ModelUintTypes | ModelFloatTypes | ModelStringTypes
+  ModelAnnotation  = #("@" modelAnnotationType "(") Params #(")")
+
+  ModelBoolTypes   = "bool"
+  ModelDateTypes   = "date"
+  ModelBytesTypes  = "bytes"
+  ModelIntTypes    = "int" | "int8" | "int16" | "int32" | "int64"
+  ModelUintTypes   = "uint" | "uint8" | "uint16" | "uint32" | "uint64"
+  ModelFloatTypes  = "float" | "float32" | "float64"
+  ModelStringTypes = "string"
+
+  modelName            = upper (letter | digit | "_")*
+  modelSpecifierSymbol = "?+-" | "?+" | "?-" | "?" | "+-" | "+" | "-"
+  modelSpecifier       = space+ ("private" | "hidden" | "auto" | "unique")
+  modelAnnotationType  = ("unique")
+  
+  modelValidation          = space+ (modelValidationOp | modelValidationRegexOp)
+  modelValidationOp        = modelValidationOpKeyword "(" digit+ ")"
+  modelValidationOpKeyword = "mul" | "gte" | "lte" | "gt" | "lt" | "minlen" | "maxlen"
+  modelValidationRegexOp   = "regex" "(" regularExpressionLiteral ")"
+
+  Relation = "relation" "{" comment? RelationField+ "}"
+
+  RelationField = fieldName RelationType comment? #(lineTerminator)
+  RelationType  = #modelName #relationSpecifierSymbol? #(relationSpecifierSimple|relationDeleteUpdate|relationSpecifierWithParams)*
+  
+  relationSpecifierSymbol     = "?" | "[]"
+  relationSpecifierSimple     = space+ ("mutual" | "mutable")
+  relationDeleteUpdate        = space+ ("delete" | "update") "(" ("nothing" | "cascade" | "unlink") ")"
+  relationSpecifierWithParams = space+ ("ref") "(" applySyntactic<Params> ")"
+
+  Params            = NonemptyListOf<fieldName, ",">
+  comment           = multiLineComment | singleLineComment
+  multiLineComment  = "/*" (~"*/" any)* "*/"
+  singleLineComment = "//" (~lineTerminator any)*
+  lineTerminator    = "\n" | "\r" | "\u2028" | "\u2029"
+  fieldName         = lower (lower | digit | "_")*
+
+  regularExpressionLiteral = "/" regularExpressionBody "/" regularExpressionFlags
+  regularExpressionBody = regularExpressionFirstChar regularExpressionChar*
+  regularExpressionFirstChar = ~("*" | "\\" | "/" | "[") regularExpressionNonTerminator | regularExpressionBackslashSequence | regularExpressionClass
+  regularExpressionChar = ~("\\" | "/" | "[") regularExpressionNonTerminator | regularExpressionBackslashSequence | regularExpressionClass
+  regularExpressionBackslashSequence = "\\" regularExpressionNonTerminator
+  regularExpressionNonTerminator = ~(lineTerminator) any
+  regularExpressionClass = "[" regularExpressionClassChar* "]"
+  regularExpressionClassChar = ~("]" | "\\") regularExpressionNonTerminator | regularExpressionBackslashSequence
+  regularExpressionFlags = ("d"|"g"|"i"|"m"|"s"|"u"|"v"|"y")*
+}
+
+// int/float/date => gt/lt/gte/lte/mul
+// string => regex/minlen/maxlen
+
+// CREATE => required, except if nullable/auto (optional) or doNotCreate (hidden)
+// UPDATE => optional, except if doNotUpdate (hidden)
+// READ   => required, except if hidden (hidden)
+// TRANSF => required, except if private (hidden)
+
+// ?  => nullable => create optional
+// +  => doNotCreate
+// -  => doNotUpdate
+// +- => readOnly
+// auto => create optional
+// mutual => bidirectional relation
+// mutable => primary relation could be updated (change author of book for example)
