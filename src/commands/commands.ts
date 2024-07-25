@@ -21,10 +21,11 @@ export type GenSubcommand = 'golang';
 
 export const initCommand = async (configFilePath: string) => {
   let mustReplaceFile = false;
-  if (fs.existsSync(configFilePath)) {
+  const fileExists = fs.existsSync(configFilePath);
+  if (fileExists) {
     mustReplaceFile = await CLI.confirmConfigFileReplacement();
   }
-  if(mustReplaceFile) {
+  if(!fileExists || mustReplaceFile) {
     fs.writeFileSync(configFilePath, diConfigFileStr, { encoding: 'utf-8' });
   }
 }
